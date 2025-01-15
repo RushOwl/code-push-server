@@ -278,7 +278,7 @@ export class RedisS3Storage implements storage.Storage {
     });
   }
 
-  public updateApp(accountId: string, app: storage.App, ensureIsOwner: boolean = true): Promise<void> {
+  public updateApp(accountId: string, app: storage.App): Promise<void> {
     app = clone(app); // pass by value
 
     if (!this.accounts[accountId] || !this.apps[app.id]) {
@@ -365,7 +365,7 @@ export class RedisS3Storage implements storage.Storage {
 
       this.removeAppPointer(targetCollaboratorAccountId, appId);
       delete app.collaborators[email];
-      return this.updateApp(accountId, app, /*ensureIsOwner*/ false);
+      return this.updateApp(accountId, app);
     });
   }
 
@@ -768,7 +768,7 @@ export class RedisS3Storage implements storage.Storage {
     if (!this._blobServerPromise) {
       const app: express.Express = express();
 
-      app.get("/:blobId", (req: express.Request, res: express.Response, next: (err?: Error) => void): any => {
+      app.get("/:blobId", (req: express.Request, res: express.Response): any => {
         const blobId: string = req.params.blobId;
         if (this.blobs[blobId]) {
           res.send(this.blobs[blobId]);
