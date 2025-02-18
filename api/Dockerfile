@@ -2,8 +2,14 @@ FROM node:18.18.0-alpine3.18
 
 WORKDIR /app
 
-COPY api/node_modules /app/node_modules
-COPY api/package.json /app/package.json
-COPY api/bin /app/bin
+COPY package.json package-lock.json tsconfig.json .
+RUN npm install && npm run clean
 
-CMD [ "npm", "run", "start:env" ]
+COPY script /app/script
+COPY test /app/test
+
+RUN mkdir tmp
+RUN npm run build
+
+CMD [ "npm", "run", "start" ]
+
