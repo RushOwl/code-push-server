@@ -756,8 +756,9 @@ export function getManagementRouter(config: ManagementConfig): Router {
   });
 
   const releaseRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+      skipSuccessfulRequests: true,
+      windowMs: 10 * 60 * 1000, // 10 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
   });
 
   router.post("/apps/:appName/deployments/:deploymentName/release", releaseRateLimiter, (req: Request, res: Response, next: (err?: any) => void): any => {
