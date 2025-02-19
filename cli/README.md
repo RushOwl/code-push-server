@@ -9,7 +9,7 @@ To run the CodePush CLI, follow these steps:
 1. Clone the CodePush Service repository.
 1. Install the necessary dependencies by running `npm install`.
 1. Build the CLI by running `npm run build`.
-1. Install CLI globally by running `npm install -g`.
+1. Bundle standalone binary `npm run bundle`. You can find it in `dist` directory.
 
 ## Getting started
 

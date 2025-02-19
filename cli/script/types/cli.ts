@@ -202,9 +202,6 @@ export interface IReleaseReactCommand extends IReleaseBaseCommand {
   useHermes?: boolean;
   extraHermesFlags?: string[];
   podFile?: string;
-  xcodeProjectFile?: string;
-  xcodeTargetName?: string;
-  buildConfigurationName?: string;
 }
 
 export interface IRollbackCommand extends ICommand {

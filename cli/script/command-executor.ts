@@ -22,7 +22,6 @@ const which = require("which");
 import wordwrap = require("wordwrap");
 import * as cli from "../script/types/cli";
 import sign from "./sign";
-const xcode = require("xcode");
 import {
   AccessKey,
   Account,
@@ -437,7 +436,6 @@ export function execute(command: cli.ICommand) {
   return Q(<void>null).then(() => {
     switch (command.type) {
       // Must not be logged in
-      case cli.CommandType.login:
       case cli.CommandType.register:
         if (connectionInfo) {
           throw new Error("You are already logged in from this machine.");
@@ -445,6 +443,7 @@ export function execute(command: cli.ICommand) {
         break;
 
       // It does not matter whether you are logged in or not
+      case cli.CommandType.login:
       case cli.CommandType.link:
         break;
 
@@ -590,6 +589,11 @@ function link(command: cli.ILinkCommand): Promise<void> {
 
 function login(command: cli.ILoginCommand): Promise<void> {
   // Check if one of the flags were provided.
+  if (connectionInfo && connectionInfo.accessKey) {
+    log("You are already logged in from this machine.");
+    return Q(<void>null);
+  }
+
   if (command.accessKey) {
     sdk = getSdk(command.accessKey, CLI_HEADERS, command.serverUrl);
     return sdk.isAuthenticated().then((isAuthenticated: boolean): void => {
@@ -907,13 +911,9 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
         log(`Using the target binary version value "${parsedPlist.CFBundleShortVersionString}" from "${resolvedPlistFile}".\n`);
         return Q(parsedPlist.CFBundleShortVersionString);
       } else {
-        if (parsedPlist.CFBundleShortVersionString !== "$(MARKETING_VERSION)") {
-          throw new Error(
-            `The "CFBundleShortVersionString" key in the "${resolvedPlistFile}" file needs to specify a valid semver string, containing both a major and minor version (e.g. 1.3.2, 1.1).`
-          );
-        }
-
-        return getAppVersionFromXcodeProject(command, projectName);
+        throw new Error(
+          `The "CFBundleShortVersionString" key in the "${resolvedPlistFile}" file needs to specify a valid semver string, containing both a major and minor version (e.g. 1.3.2, 1.1).`
+        );
       }
     } else {
       throw new Error(`The "CFBundleShortVersionString" key doesn't exist within the "${resolvedPlistFile}" file.`);
@@ -1047,53 +1047,6 @@ function getReactNativeProjectAppVersion(command: cli.IReleaseReactCommand, proj
         }
       });
   }
-}
-
-function getAppVersionFromXcodeProject(command: cli.IReleaseReactCommand, projectName: string): Promise<string> {
-  const pbxprojFileName = "project.pbxproj";
-  let resolvedPbxprojFile: string = command.xcodeProjectFile;
-  if (resolvedPbxprojFile) {
-    // If the xcode project file path is explicitly provided, then we don't
-    // need to attempt to "resolve" it within the well-known locations.
-    if (!resolvedPbxprojFile.endsWith(pbxprojFileName)) {
-      // Specify path to pbxproj file if the provided file path is an Xcode project file.
-      resolvedPbxprojFile = path.join(resolvedPbxprojFile, pbxprojFileName);
-    }
-    if (!fileExists(resolvedPbxprojFile)) {
-      throw new Error("The specified pbx project file doesn't exist. Please check that the provided path is correct.");
-    }
-  } else {
-    const iOSDirectory = "ios";
-    const xcodeprojDirectory = `${projectName}.xcodeproj`;
-    const pbxprojKnownLocations = [
-      path.join(iOSDirectory, xcodeprojDirectory, pbxprojFileName),
-      path.join(iOSDirectory, pbxprojFileName),
-    ];
-    resolvedPbxprojFile = pbxprojKnownLocations.find(fileExists);
-
-    if (!resolvedPbxprojFile) {
-      throw new Error(
-        `Unable to find either of the following pbxproj files in order to infer your app's binary version: "${pbxprojKnownLocations.join(
-          '", "'
-        )}".`
-      );
-    }
-  }
-
-  const xcodeProj = xcode.project(resolvedPbxprojFile).parseSync();
-  const marketingVersion = xcodeProj.getBuildProperty(
-    "MARKETING_VERSION",
-    command.buildConfigurationName,
-    command.xcodeTargetName
-  );
-  if (!isValidVersion(marketingVersion)) {
-    throw new Error(
-      `The "MARKETING_VERSION" key in the "${resolvedPbxprojFile}" file needs to specify a valid semver string, containing both a major and minor version (e.g. 1.3.2, 1.1).`
-    );
-  }
-  console.log(`Using the target binary version value "${marketingVersion}" from "${resolvedPbxprojFile}".\n`);
-
-  return marketingVersion;
 }
 
 function printJson(object: any): void {

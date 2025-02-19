@@ -28,7 +28,8 @@ export interface AuthenticationConfig {
 const DEFAULT_SESSION_EXPIRY = 1000 * 60 * 60 * 24 * 60; // 60 days
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  skipSuccessfulRequests: true,
+  windowMs: 10 * 60 * 1000, // 10 minutes
   max: 100, // limit each IP to 100 requests per windowMs
 });
 
@@ -272,7 +273,7 @@ export class PassportAuthentication {
     );
 
     router.get(
-      "/auth/register/" + providerName, 
+      "/auth/register/" + providerName,
       limiter,
       this._cookieSessionMiddleware,
       (req: Request, res: Response, next: (err?: any) => void): any => {

@@ -8,6 +8,5 @@
     },
     "exclude": [
       "./bin",
-      "./node_modules"
     ]
   }
