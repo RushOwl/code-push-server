@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as chalk from "chalk";
 import * as path from "path";
 import * as childProcess from "child_process";
-import { coerce, compare, valid } from "semver";
+import { coerce, compare, valid } from 'semver'
 import { fileDoesNotExistOrIsDirectory } from "./utils/file-utils";
 
 const g2js = require("gradle-to-js/lib/parser");
