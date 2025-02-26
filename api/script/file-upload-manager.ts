@@ -1,6 +1,4 @@
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License.
-
+import { generate } from "randomstring"
 import * as express from "express";
 import multer = require("multer");
 
@@ -44,7 +42,7 @@ export function getFileWithField(req: Express.Request, field: string): Express.M
 
 export function createTempFileFromBuffer(buffer: Buffer): string {
   const tmpPath = require("os").tmpdir();
-  const tmpFilePath = require("path").join(tmpPath, "tempfile");
+  const tmpFilePath = require("path").join(tmpPath, generate({ charset: 'alphanumeric', length: 20 }));
   require("fs").writeFileSync(tmpFilePath, buffer);
   return tmpFilePath;
 }
