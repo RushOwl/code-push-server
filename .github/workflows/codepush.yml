@@ -1,0 +1,103 @@
+name: "Deploy codepush to CLOUDOPS-PROD"
+# Only one job in concurrency group can be run at the same time
+concurrency:
+  group: codepush-cloudops-prod-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write      # for fetching the OIDC token
+  contents: read       # for actions/checkout
+  pull-requests: read  # for dorny/path-filter
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - "api/**"
+      - ".github/workflows/codepush**"
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE_NAME: mmc-ops/code-push-server
+  DOCKER_PULL: true
+  DOCKER_PUSH: true
+  DOCKER_PLATFORMS: "linux/arm64/v8"
+jobs:
+  build-docker-image:
+    runs-on: ubicloud-standard-8-arm
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Set SHA env
+        run: echo "GITHUB_SHA_SHORT=$(echo ${{ github.event.pull_request.head.sha || github.sha }} | cut -c 1-8)" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4
+        with:
+          role-to-assume: arn:aws:iam::747838348021:role/github_actions_ecr_pusher
+          role-session-name: GithubActionCodepushDeploy
+          aws-region: "us-east-1"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: "747838348021"
+
+      - name: Docker meta
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=schedule
+            type=ref,event=tag
+            type=sha
+            type=raw,value=sha8-${{ env.GITHUB_SHA_SHORT }}
+          images: |
+            747838348021.dkr.ecr.us-east-1.amazonaws.com/${{ env.DOCKER_IMAGE_NAME }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          file: api/Dockerfile
+          context: api/
+          build-args: |
+            "COMMIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}"
+          pull: ${{ env.DOCKER_PULL }}
+          push: ${{ env.DOCKER_PUSH }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          platforms: ${{ env.DOCKER_PLATFORMS }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          cache-from: type=registry,ref=747838348021.dkr.ecr.us-east-1.amazonaws.com/${{ env.DOCKER_IMAGE_NAME }}:cache
+          cache-to: mode=max,image-manifest=true,oci-mediatypes=true,type=registry,ref=747838348021.dkr.ecr.us-east-1.amazonaws.com/${{ env.DOCKER_IMAGE_NAME }}:cache
+
+  publish:
+    needs:
+      [build-docker-image]
+    runs-on: ubicloud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Set SHA env
+        run: echo "GITHUB_SHA_SHORT=$(echo ${{ github.sha }} | cut -c 1-8)" >> $GITHUB_ENV
+
+      - uses: actions/checkout@v4
+        with:
+          repository: "Ribbon-Experiences/ops"
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          ref: main
+      - run: ls -la
+      - run: yq e -i '.image.tag = "sha8-${{ env.GITHUB_SHA_SHORT }}"' charts/codepush/values.yaml
+
+      - run: cat charts/codepush/values.yaml
+
+      - uses: EndBug/add-and-commit@v9
+        with:
+          message: "Release codepush sha-${{ env.GITHUB_SHA_SHORT }}"
