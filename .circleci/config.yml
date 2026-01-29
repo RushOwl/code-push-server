@@ -168,7 +168,7 @@ workflows:
           namespace: "codepush"
           valuePath: "rushowl-helm/values.yaml"
           tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
-          kube_context: "hari-prod-bn"
+          kube_context: "rushtrail-prod-bn"
           resource_class: "rushowl/kube-eks-hari-prod-bn2"
           filters:
             tags:
