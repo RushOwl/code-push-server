@@ -166,7 +166,7 @@ workflows:
             - slack
           name: kube-deploy-prod
           namespace: "codepush"
-          valuePath: "rushowl-helm/values.yaml"
+          valuePath: "rushowl-helm/values-bn.yaml"
           tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
           kube_context: "rushtrail-prod-bn"
           resource_class: "rushowl/kube-eks-hari-prod-bn2"

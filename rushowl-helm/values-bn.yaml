@@ -1,0 +1,78 @@
+# Default values for rushowl-helm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+deploymentName: code-push-server
+serviceName: code-push-server
+configMapName: code-push-server-config-map
+
+deployment:
+  replicas: 1
+  spec:
+    template:
+      spec:
+        containers:
+          - env:
+            - name: APP_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOGGING
+              value: "true"
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: aws-redis-read-write
+                  key: host
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: aws-redis-read-write
+                  key: port
+            - name: REDIS_DB
+              valueFrom:
+                secretKeyRef:
+                  name: aws-redis-read-write
+                  key: rushtrail_db
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: s3-rushowl-data
+                  key: s3_region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-rushowl-data
+                  key: s3_access_key
+            - name: AWS_SECRET_ACCESS
+              valueFrom:
+                secretKeyRef:
+                  name: s3-rushowl-data
+                  key: s3_secret_key
+            - name: AWS_BUCKET_NAME
+              value: harinow-wordpress
+            - name: CDN_HOST
+              value: https://cdn.harinow.com
+            - name: REDIS_TLS_DISABLED
+              value: "true"
+            - name: DEBUG_DISABLE_AUTH
+              value: "false"
+            - name: CODE_PUSH_SERVER_URL
+              value: https://global.harinow.com/code-push
+            - name: BASE_URL
+              value: /code-push
+            - name: ALLOWED_EMAIL_DOMAINS
+              value: rushowl.sg,rushowl.app
+            - name: GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: code-push-server
+                  key: github_client_id
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: code-push-server
+                  key: github_client_secret
+
+configMap:
+  data:
