@@ -160,7 +160,7 @@ workflows:
             - build-and-push-image-test
       - kube-deploy:
           context:
-            - kubeconfig
+            - kubeconfig-bn
             - production-aws-ecr-read-write
             - code-push-standalone
             - slack
