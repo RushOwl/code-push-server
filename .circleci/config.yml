@@ -169,7 +169,7 @@ workflows:
           valuePath: "rushowl-helm/values.yaml"
           tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
           kube_context: "hari-prod-bn"
-          resource_class: "rushowl/kube-eks-hari-prod-bn"
+          resource_class: "rushowl/kube-eks-hari-prod-bn2"
           filters:
             tags:
               ignore: /.*/
