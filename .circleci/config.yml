@@ -75,9 +75,11 @@ jobs:
         type: string
       kube_context:
         type: string
+      resource_class:
+        type: string
     docker:
       - image: reynandaptr/alpine:0.0.3
-    resource_class: sznnwvosn2in82bxrhcsj6/kube-eks-rushtrail-prod-sg
+    resource_class: << parameters.resource_class >>
     steps:
       - run:
           name: Install kubeconfig
@@ -147,6 +149,27 @@ workflows:
           valuePath: "rushowl-helm/values.yaml"
           tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
           kube_context: "rushtrail-prod-sg"
+          resource_class: "sznnwvosn2in82bxrhcsj6/kube-eks-rushtrail-prod-sg"
+          filters:
+            tags:
+              ignore: /.*/
+            branches:
+              only:
+                - main
+          requires:
+            - build-and-push-image-test
+      - kube-deploy:
+          context:
+            - kubeconfig
+            - production-aws-ecr-read-write
+            - code-push-standalone
+            - slack
+          name: kube-deploy-prod
+          namespace: "codepush"
+          valuePath: "rushowl-helm/values.yaml"
+          tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
+          kube_context: "hari-prod-bn"
+          resource_class: "harinow/kube-eks-hari-prod-bn"
           filters:
             tags:
               ignore: /.*/
