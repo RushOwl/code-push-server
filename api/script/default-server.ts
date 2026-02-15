@@ -11,7 +11,7 @@ import * as bodyParser from "body-parser";
 const domain = require("express-domain-middleware");
 import * as express from "express";
 import * as q from "q";
-import { RedisS3Storage } from "./storage/redis-s3-storage";
+import { PostgresStorage } from "./storage/postgres";
 
 interface Secret {
   id: string;
@@ -36,7 +36,7 @@ export function start(done: (err?: any, server?: express.Express, storage?: Stor
 
   q<void>(null)
     .then(async () => {
-      storage = new RedisS3Storage();
+      storage = new PostgresStorage();
     })
     .then(() => {
       const app = express();
