@@ -11,9 +11,9 @@
 # keeps it at 0. code-push loads its whole database (the Redis key `state`)
 # once at startup and rewrites that key on every change: a pod that starts on
 # an empty Redis and then takes a login or a release wipes the copy. So it
-# starts only after rushowl-infra's `flip.py sg on` has stopped EKS and copied
-# the Redis data (scripts/switch/codepush-redis.sh); the PR that sets 1 here
-# (and 0 for EKS SG) lands right after the switch.
+# starts only after rushowl-infra's `scripts/codepush-move.sh sg on` has
+# stopped EKS and copied the Redis data; the PR that sets 1 here (and 0 for
+# EKS SG) lands right after that.
 deployment:
   replicas: 0
 
