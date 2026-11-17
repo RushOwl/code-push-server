@@ -14,10 +14,13 @@ spec:
       labels:
         app: {{ .Values.deploymentName }}
     spec:
+      {{- with .Values.serviceAccountName }}
+      serviceAccountName: {{ . }}
+      {{- end }}
       containers:
         - name: {{ .Values.deploymentName }}
           image: "{{ .Values.image.uri }}:{{ .Values.image.tag }}"
-          env: {{ (index .Values.deployment.spec.template.spec.containers 0).env | toYaml | nindent 12 }}
+          env: {{ include "codepush.env" (dict "env" (index .Values.deployment.spec.template.spec.containers 0).env "extra" .Values.extraEnv) | nindent 12 }}
           volumeMounts: {{ (index .Values.deployment.spec.template.spec.containers 0).volumeMounts | toYaml | nindent 12 }}
           ports:
             - containerPort: 50050
