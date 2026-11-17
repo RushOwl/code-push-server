@@ -7,16 +7,17 @@
 # /code-push to code-push-server.codepush). Before then it answers on
 # global-backend-staging.rushowl.app/code-push.
 
-# 0 until the SG switch window, set here and never by hand, so every release
-# keeps it at 0. code-push loads its whole database (the Redis key `state`)
-# once at startup and rewrites that key on every change: a pod that starts on
-# an empty Redis and then takes a login or a release wipes the copy. So it
-# starts only after rushowl-infra's `scripts/codepush-move.sh sg on` has
-# copied the Redis data from EKS (EKS may keep running; only the side DNS
-# points at takes writes). The PR that sets 1 here (and 0 for EKS SG) lands
-# once global.rushtrail.app points at AKS.
+# 1: AKS runs code-push alongside EKS SG (values.yaml keeps EKS at 1).
+# Set here and never by hand, so every release keeps it at 1. Safe only
+# because rushowl-infra's `scripts/codepush-move.sh sg on` already copied the
+# Redis data from EKS into the AKS Redis (PVC, so it survives restarts):
+# code-push loads its whole database (the Redis key `state`) once at startup
+# and rewrites that key on every change, so a pod on an empty Redis that
+# takes a login or a release wipes it. Until global.rushtrail.app points at
+# AKS, EKS holds the real data: no logins or releases on the AKS (staging)
+# host, and `codepush-move.sh sg recheck` / `sg resync` refresh the copy.
 deployment:
-  replicas: 0
+  replicas: 1
 
 serviceAccountName: code-push-server
 
