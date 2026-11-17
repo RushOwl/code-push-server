@@ -12,8 +12,9 @@
 # once at startup and rewrites that key on every change: a pod that starts on
 # an empty Redis and then takes a login or a release wipes the copy. So it
 # starts only after rushowl-infra's `scripts/codepush-move.sh sg on` has
-# stopped EKS and copied the Redis data; the PR that sets 1 here (and 0 for
-# EKS SG) lands right after that.
+# copied the Redis data from EKS (EKS may keep running; only the side DNS
+# points at takes writes). The PR that sets 1 here (and 0 for EKS SG) lands
+# once global.rushtrail.app points at AKS.
 deployment:
   replicas: 0
 
