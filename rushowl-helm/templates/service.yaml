@@ -9,4 +9,4 @@ spec:
     - protocol: TCP
       port: 50050
       targetPort: 3000
-  type: NodePort
+  type: {{ .Values.serviceType | default "NodePort" }}

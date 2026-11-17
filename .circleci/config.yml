@@ -65,12 +65,44 @@ jobs:
       - slack/notify:
           event: pass
           template: basic_success_1
+  # Azure AKS (AIT-38): copy this build's image ECR -> the cluster's ACR (same
+  # digest) on the AKS cluster's in-cluster runner, whose job pods sign in to
+  # the registry as the deploy identity (workload identity); see
+  # scripts/azure/mirror-image.sh.
+  mirror-image-acr:
+    parameters:
+      registry:
+        type: string
+      tag:
+        type: string
+      resource_class:
+        type: string
+    docker:
+      # curl, jq, tar, bash; the same pinned image the other repos' mirror jobs use.
+      - image: rushowl/alpine@sha256:10d44ed92df609ff7e5704505883468d43140d8988461594ad094d8f1bf99f55
+    resource_class: << parameters.resource_class >>
+    steps:
+      - checkout
+      - run:
+          name: Copy the image from ECR to ACR (same digest)
+          command: scripts/azure/mirror-image.sh "<< parameters.registry >>" "<< parameters.tag >>" "code-push-server"
+      - slack/notify:
+          event: fail
+          template: basic_fail_1
   kube-deploy:
     parameters:
       namespace:
         type: string
       valuePath:
         type: string
+      # A second values file laid over valuePath (AKS: values-prod-sg-aks.yaml).
+      extraValuePath:
+        type: string
+        default: ""
+      # Registry the cluster pulls from; empty = this account's ECR.
+      image_uri:
+        type: string
+        default: ""
       tag:
         type: string
       kube_context:
@@ -100,16 +132,19 @@ jobs:
             CIRCLE_PROJECT_REPONAME=$CIRCLE_PROJECT_REPONAME
             NAMESPACE="<< parameters.namespace >>"
             VALUES_FILE="<< parameters.valuePath >>"
-            IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$CIRCLE_PROJECT_REPONAME"
+            IMAGE_URI="<< parameters.image_uri >>"
+            [ -n "$IMAGE_URI" ] || IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$CIRCLE_PROJECT_REPONAME"
+            EXTRA_VALUES=""
+            [ -z "<< parameters.extraValuePath >>" ] || EXTRA_VALUES="--values << parameters.extraValuePath >>"
             IMAGE_TAG="<< parameters.tag >>"
             KUBE_CONTEXT="<< parameters.kube_context >>"
 
             if helm status $CIRCLE_PROJECT_REPONAME --namespace $NAMESPACE --kube-context $KUBE_CONTEXT > /dev/null 2>&1; then
               echo "Release $CIRCLE_PROJECT_REPONAME exists. Upgrading..."
-              helm upgrade $CIRCLE_PROJECT_REPONAME rushowl-helm --set image.uri=$IMAGE_URI --set image.tag=$IMAGE_TAG --values $VALUES_FILE --namespace $NAMESPACE --kube-context $KUBE_CONTEXT
+              helm upgrade $CIRCLE_PROJECT_REPONAME rushowl-helm --set image.uri=$IMAGE_URI --set image.tag=$IMAGE_TAG --values $VALUES_FILE $EXTRA_VALUES --namespace $NAMESPACE --kube-context $KUBE_CONTEXT
             else
               echo "Release $CIRCLE_PROJECT_REPONAME does not exist. Installing..."
-              helm install $CIRCLE_PROJECT_REPONAME rushowl-helm --set image.uri=$IMAGE_URI --set image.tag=$IMAGE_TAG --values $VALUES_FILE --namespace $NAMESPACE --kube-context $KUBE_CONTEXT
+              helm install $CIRCLE_PROJECT_REPONAME rushowl-helm --set image.uri=$IMAGE_URI --set image.tag=$IMAGE_TAG --values $VALUES_FILE $EXTRA_VALUES --namespace $NAMESPACE --kube-context $KUBE_CONTEXT
             fi
       - run:
           name: Cleanup
@@ -178,3 +213,44 @@ workflows:
                 - main
           requires:
             - build-and-push-image-test
+      # --- Azure AKS SG (AIT-38): copy the image ECR -> ACR, then helm upgrade
+      # with values-prod-sg-aks.yaml laid over EKS SG's values.yaml (replicas
+      # 0 until the SG switch window, in-cluster Redis). Separate jobs: a
+      # failure here never blocks or changes the EKS and Brunei deploys.
+      - mirror-image-acr:
+          context:
+            # ECR read (AWS_ACCOUNT_ID, AWS_REGION and keys).
+            - production-aws-ecr-read-write
+            - slack
+          name: mirror-image-prod-sg-aks
+          registry: "acrrowlprodsgsea.azurecr.io"
+          tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
+          resource_class: "rushowl/azure-aks-prod-sg"
+          filters:
+            tags:
+              ignore: /.*/
+            branches:
+              only:
+                - main
+          requires:
+            - build-and-push-image-test
+      - kube-deploy:
+          context:
+            - azure-kubeconfig-sg
+            - slack
+          name: kube-deploy-prod-sg-aks
+          namespace: "codepush"
+          valuePath: "rushowl-helm/values.yaml"
+          extraValuePath: "rushowl-helm/values-prod-sg-aks.yaml"
+          image_uri: "acrrowlprodsgsea.azurecr.io/code-push-server"
+          tag: "${CIRCLE_BRANCH}-${CIRCLE_SHA1}"
+          kube_context: "aks-prod-sg-sea"
+          resource_class: "rushowl/azure-aks-prod-sg"
+          filters:
+            tags:
+              ignore: /.*/
+            branches:
+              only:
+                - main
+          requires:
+            - mirror-image-prod-sg-aks

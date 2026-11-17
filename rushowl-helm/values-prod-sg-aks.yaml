@@ -1,0 +1,38 @@
+# Azure AKS SG (aks-prod-sg-sea), namespace codepush (AIT-38). The AKS deploy
+# job lays this over values.yaml (EKS SG's file), so the env is EKS's and only
+# the AKS differences live here. Never used by an EKS or Brunei job.
+#
+# Served at global.rushtrail.app/code-push once that host moves to AKS in the
+# SG switch window (rushtrail-istio-helm values-prod-global-aks.yaml routes
+# /code-push to code-push-server.codepush). Before then it answers on
+# global-backend-staging.rushowl.app/code-push.
+
+# 0 until the SG switch window, set here and never by hand, so every release
+# keeps it at 0. code-push loads its whole database (the Redis key `state`)
+# once at startup and rewrites that key on every change: a pod that starts on
+# an empty Redis and then takes a login or a release wipes the copy. So it
+# starts only after rushowl-infra's `scripts/codepush-move.sh sg on` has
+# copied the Redis data from EKS (EKS may keep running; only the side DNS
+# points at takes writes). The PR that sets 1 here (and 0 for EKS SG) lands
+# once global.rushtrail.app points at AKS.
+deployment:
+  replicas: 0
+
+serviceAccountName: code-push-server
+
+# Reached only through the mesh (the global VirtualService), so no NodePort
+# on the AKS nodes (EKS keeps NodePort, the values.yaml default).
+serviceType: ClusterIP
+
+# Redis: the in-cluster code-push Redis (rushowl-infra
+# kubernetes/aks-prod-sg-sea/codepush-redis), no password, no TLS; there is no
+# path from AKS to ElastiCache (AIT-38 D13). DB 5 = the `state` DB, the same
+# number as ElastiCache's rushtrail_db, so the copy is one to one; the
+# hard-coded DB 0 (response cache) and DB 1 (install metrics) sit beside it.
+# These replace values.yaml's aws-redis-read-write secretKeyRefs; the
+# s3-rushowl-data and code-push-server Secrets come from the vault
+# (rushowl-infra external-secrets, namespace codepush). S3 stays on AWS.
+extraEnv:
+  REDIS_HOST: code-push-redis.codepush.svc.cluster.local
+  REDIS_PORT: "6379"
+  REDIS_DB: "5"

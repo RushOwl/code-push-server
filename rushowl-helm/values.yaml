@@ -76,3 +76,17 @@ deployment:
 
 configMap:
   data:
+
+# Azure AKS only (AIT-38 D16): the ServiceAccount rushowl-infra creates for
+# this service (addons.sh service-accounts, namespace codepush). Empty on EKS
+# and Brunei, so they keep the namespace's default one.
+serviceAccountName: ""
+
+# Plain env vars (name -> value) laid over the env list above by
+# templates/_env.tpl: a name already in the list is replaced in place, a new
+# one is appended. A map, so an overlay replaces single entries instead of the
+# whole list. Empty by default: EKS and Brunei render unchanged.
+extraEnv: {}
+
+# Service type; empty = NodePort (EKS and Brunei as before).
+serviceType: ""
